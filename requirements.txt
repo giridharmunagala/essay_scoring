@@ -6,3 +6,6 @@ pandas==2.2.2
 scikit-learn==1.5.1
 wandb==0.17.5
 evaluate==0.4.2
+spacy==3.7.5
+sentence_transformers==3.0.1
+pytorch-ignite==0.5.1

@@ -165,3 +165,14 @@ learning-agency-lab-automated-essay-scoring-2/test.csv
 learning-agency-lab-automated-essay-scoring-2/train.csv
 tokens.py
 wandb/*
+asap-aes/*
+bert_checkpoints/*
+asap-aes.zip
+learning-agency-lab-automated-essay-scoring-2/train.csvZone.Identifier
+learning-agency-lab-automated-essay-scoring-2/test.csvZone.Identifier
+learning-agency-lab-automated-essay-scoring-2/sample_submission.csvZone.Identifier
+best_model.pth
+train_dataset.pkl
+test_dataset.pkl
+val_dataset.pkl
+*.Identifier
