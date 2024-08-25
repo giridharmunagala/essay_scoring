@@ -4,10 +4,13 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from utils import compute_quadratic_weighted_kappa, compute_accuracy_metric
+from utils import compute_quadratic_weighted_kappa
 
 class TrainerForEssayScoring:
-    def __init__(self, model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, optimizer: optim.Optimizer = None, criterion: nn.Module = None,
+    """
+    Trainer class for training the WordSentRegressor model.
+    """
+    def __init__(self, model: nn.Module, train_loader: DataLoader, val_loader: DataLoader, has_stats_features:bool=False, optimizer: optim.Optimizer = None, criterion: nn.Module = None,
                  device: str = torch.device('cuda')):
         """
         Initializes the TrainerForEssayScoring class.
@@ -26,6 +29,7 @@ class TrainerForEssayScoring:
         self.val_loader = val_loader
         self.optimizer = optimizer if optimizer else optim.Adam(self.model.parameters(), lr=0.0001)
         self.criterion = criterion if criterion else nn.MSELoss()
+        self.has_stats_features = has_stats_features
         
     def train(self, num_epochs):
         """
@@ -37,9 +41,14 @@ class TrainerForEssayScoring:
             self.model.train()
             running_loss = 0.0
             for i, batch in enumerate(self.train_loader):
+                if self.has_stats_features:
+                    stats_features = batch['stats_features'].to(self.device)
                 word_embedded, sent_embedded, targets = batch['word_embeddings'].to(self.device), batch['sentence_embeddings'].to(self.device), batch['labels'].to(self.device)
                 self.optimizer.zero_grad()
-                outputs = self.model(word_embedded, sent_embedded)
+                if self.has_stats_features:
+                    outputs = self.model(word_embedded, sent_embedded, stats_features)
+                else:
+                    outputs = self.model(word_embedded, sent_embedded)
                 loss = self.criterion(outputs, targets)
                 loss.backward()
                 self.optimizer.step()
@@ -57,8 +66,13 @@ class TrainerForEssayScoring:
             val_loss = 0.0
             with torch.no_grad():
                 for batch in self.val_loader:
+                    if self.has_stats_features:
+                        stats_features = batch['stats_features'].to(self.device)
                     word_embedded, sent_embedded, targets = batch['word_embeddings'].to(self.device), batch['sentence_embeddings'].to(self.device), batch['labels'].to(self.device)
-                    outputs = self.model(word_embedded, sent_embedded)
+                    if self.has_stats_features:
+                        outputs = self.model(word_embedded, sent_embedded, stats_features)
+                    else:
+                        outputs = self.model(word_embedded, sent_embedded)
                     loss = self.criterion(outputs, targets)
                     val_loss += loss.item() * word_embedded.size(0)
             
