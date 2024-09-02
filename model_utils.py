@@ -5,6 +5,9 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from utils import compute_quadratic_weighted_kappa
+import wandb
+import wandb
+from tokens import WANDB_TOKEN
 
 class TrainerForEssayScoring:
     """
@@ -30,6 +33,8 @@ class TrainerForEssayScoring:
         self.optimizer = optimizer if optimizer else optim.Adam(self.model.parameters(), lr=0.0001)
         self.criterion = criterion if criterion else nn.MSELoss()
         self.has_stats_features = has_stats_features
+        wandb.login(key=WANDB_TOKEN)
+        self.run = wandb.init(project='essay_scoring', config={'model': self.model.__class__.__name__})
         
     def train(self, num_epochs):
         """
@@ -56,9 +61,11 @@ class TrainerForEssayScoring:
                 # Print loss every 100 batches
                 if i % 100 == 0:
                     print(f'Epoch {epoch+1}/{num_epochs}, Batch {i+1}/{len(self.train_loader)}, Loss: {loss.item():.4f}')
+                    wandb.log({"Loss": loss.item()})
             
             epoch_loss = running_loss / len(self.train_loader.dataset)
             print(f'Epoch {epoch+1}/{num_epochs}, Training Loss: {epoch_loss:.4f}')
+            wandb.log({"Training Loss": epoch_loss})
             
             # If validation is better than previous replaces the current model with the best model
             # Validation
@@ -84,6 +91,9 @@ class TrainerForEssayScoring:
                     best_loss = val_loss
                     torch.save(self.model.state_dict(), 'best_model.pth')
             print(f'Epoch {epoch+1}/{num_epochs}, Validation Loss: {val_loss:.4f}')
+            wandb.log({"Validation Loss": val_loss})
+        
+        self.run.finish()
 
 class Evaluator:
     def __init__(self, model: nn.Module, test_loader: DataLoader, device: str = torch.device('cuda')):
@@ -111,8 +121,8 @@ class Evaluator:
 
         with torch.no_grad():
             for batch in tqdm(self.test_loader):
-                word_embedded, sent_embedded, targets = batch['word_embeddings'].to(self.device), batch['sentence_embeddings'].to(self.device), batch['labels'].to(self.device)
-                outputs = self.model(word_embedded, sent_embedded)
+                word_embedded, sent_embedded, stats_features, targets = batch['word_embeddings'].to(self.device), batch['sentence_embeddings'].to(self.device), batch['stats_features'].to(self.device), batch['labels'].to(self.device)
+                outputs = self.model(word_embedded, sent_embedded, stats_features)
                 # Rounding predictions to the nearest integer
                 outputs = torch.round(outputs)
                 test_predictions.extend(outputs.cpu().numpy())
